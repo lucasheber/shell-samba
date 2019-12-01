@@ -1,0 +1,44 @@
+# Global parameters
+[global]
+	bind interfaces only = Yes
+	domain logons = Yes
+	domain master = Yes
+	interfaces = lo enp0s8
+	log file = /var/log/samba/log.%m
+	logon drive = H:
+	logon path = 
+	logon script = netlogon.bat
+	max log size = 50
+	os level = 254
+	preferred master = Yes
+	security = USER
+	server string = Active Directory - Microsoft Corporation
+	wins support = Yes
+	workgroup = LUCAS
+	idmap config * : backend = tdb
+	cups options = raw
+
+
+[homes]
+	browseable = No
+	comment = Home Directories
+	read only = No
+
+
+[printers]
+	browseable = No
+	comment = All Printers
+	path = /var/spool/samba
+	printable = Yes
+
+
+[netlogon]
+	comment = Network Logon Service
+	guest ok = Yes
+	path = /var/lib/samba/netlogon
+
+
+[arquivos]
+	comment = Arquivos Compartilhados
+	path = /home/samba/arquivos
+	write list = +fragil
