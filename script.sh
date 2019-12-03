@@ -6,6 +6,7 @@ NT_STATUS_CONNECTION_REFUSED="NT_STATUS_CONNECTION_REFUSED"
 UNIDADE_HOME="H"
 UNIDADE_ARQUIVOS="X"
 DIR_ARQUIVOS="/home/samba/arquivos"
+PLACA_INTERNA="enp0s8"
 
 # Configuracoes
 workgroup=$1 # Nome do dominio via parametro
@@ -31,6 +32,8 @@ BGBLUE='\033[44m'
 NC='\033[0m' # No Color
 
 eval userslinux=""
+eval ipinterno=""
+
 
 # ################################################################################### #
 #                             VERIFICANDO OS SERVICOS                                 #
@@ -113,6 +116,25 @@ dados_necessarios() {
     usersSSH="sshpass -p $passSamba ssh -o StrictHostKeyChecking=no $sambaUser@$sambaServer "$users""
     userslinux=$(sshpass -p $pass ssh -o StrictHostKeyChecking=no $proxyUser@$proxyServer "$usersSSH")
 
+    sship="ip addr | grep $PLACA_INTERNA | grep inet | awk '{ print \$2 }' | cut -d'/' -f1"
+    sambaSSH="sshpass -p $passSamba ssh -o StrictHostKeyChecking=no $sambaUser@$sambaServer "$sship""
+    ip=`sshpass -p $pass ssh -o StrictHostKeyChecking=no $proxyUser@$proxyServer "$sambaSSH"`
+
+    if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+        echo -e "${GREEN}[SUCCESS]${NC} IP da rede interna: $ip"
+        ipinterno="$ip"
+    else
+        IP=$(whiptail --inputbox "Por favor, foneca seu IP da rede interna" 8 78 --title "IP da rede interna" 3>&1 1>&2 2>&3)
+        exitstatus=$?
+        if [ $exitstatus = 0 -a ! -z "$IP" ]; then
+            echo -e "${GREEN}[SUCCESS]${NC} IP da rede interna: $IP"
+            ipinterno="$IP"
+        else
+            echo -e "${RED}[ERROR]${NC} IP da rede interna nao encontrado!"
+            echo "(Exit status was $exitstatus)"
+        fi
+    fi
+
     if [ -f $arquivoTeste ]; then
         echo -e "${GREEN}[SUCCESS]${NC} Arquivo $arquivoTeste gerado!"
         valida_dados
@@ -152,13 +174,22 @@ valida_dados() {
         echo -e "${RED}[ERROR]${NC} Nao configurado para PDC. (+0 Pontos)"
     fi
 
-    if [ "$bindinterface" == "Yes" -a "$interfaces" == "lo enp0s8" -o "$interfaces" == "enp0s8 lo"  ]; then
+    ## Testar
+    if [ "$bindinterface" == "Yes" -a "$interfaces" == "lo $PLACA_INTERNA" -o "$interfaces" == "$PLACA_INTERNA lo"  ]; then
         echo -e "${GREEN}[SUCCESS]${NC} Configurado para somente a rede local ter acesso. (+3 Pontos)"
         pontos=`expr $pontos + 3`
     else
         echo -e "${RED}[ERROR]${NC} Nao configurado para somente a rede local ter acesso. (+0 Pontos)"
     fi
 
+    if [ "$logondrive" -eq "H:" -a "$homes" -eq "No" ]; then
+        echo -e "${GREEN}[SUCCESS]${NC} Diretorio home mapeado (+3 Pontos)"
+        pontos=`expr $pontos + 3`
+    else
+        echo -e "${RED}[ERROR]${NC} Nao configurado para somente a rede local ter acesso. (+0 Pontos)"
+    fi
+
+     #smbclient -U pedrito%123 \\\\INFRA\\arquivos -c 'mkdir teste3'
     # Invalid User
     if [ ! -z $invaliduser ]; then
         echo -e "${YELLOW}[WARNING]${NC} O usuario root esta configuradao para fazer logon!"
@@ -167,6 +198,40 @@ valida_dados() {
     echo "Total: $pontos pontos";
 }
 
+netlogon() {
+    pathnetlogon=$1
+    tipo=$2 # 1 - diretorio home, 2 - diretorio arquivos
+
+    case $tipo in
+        1) 
+            neth="cat $pathnetlogon | tr -s ' ' | grep 'net use H: /HOME'"
+            sambaSSH="sshpass -p $passSamba ssh -o StrictHostKeyChecking=no $sambaUser@$sambaServer "$neth""
+            result=`sshpass -p $pass ssh -o StrictHostKeyChecking=no $proxyUser@$proxyServer "$sambaSSH"`
+
+            if [ -z "$result" ]; then
+                return 1 # ERRO
+            else
+                return 0 #Ok
+            fi
+        ;;
+        2) 
+            neth="cat $pathnetlogon | tr -s ' ' | grep 'net use X: \\\\\\\\$ipinterno\\\arquivos /yes'"
+            sambaSSH="sshpass -p $passSamba ssh -o StrictHostKeyChecking=no $sambaUser@$sambaServer "$neth""
+            result=`sshpass -p $pass ssh -o StrictHostKeyChecking=no $proxyUser@$proxyServer "$sambaSSH"`
+  
+            if [ -z "$result" ]; then
+                return 1 # ERRO
+            else
+                return 0 #Ok
+            fi
+        ;;
+        *) return 1 
+        ;;
+    esac
+}
+
 #verificando_servicos
 dados_necessarios
+netlogon "/var/lib/samba/netlogon/netlogon.bat" 2
+echo $?
 #rm -f $arquivoTeste
