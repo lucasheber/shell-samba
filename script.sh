@@ -164,7 +164,7 @@ valida_dados() {
     oslevel=$(cat $arquivoTeste | grep 'os level =' | awk '{ print $NF }')
     pathnetlogon=$(cat $arquivoTeste | grep -A5 "\[netlogon\]" | grep -m1 "path" | awk '{ print $NF }')
     crlf=$(file $pathnetlogon/$logonscript | awk -F: '{ print $2}')
-    homes=$(cat $arquivoTeste | grep -A6 "\[homes\]" | grep -m1 "read only" | awk '{ print $NF }')
+    homes=$(cat $arquivoTeste | grep -A6 "\[homes\]" | grep -m1 "read only =" | awk '{ print $NF }')
 
     ## VALIDANDO
     if [ "$preferred" == "Yes" -a "$domain" == "Yes" -a "$logons" == "Yes" ]; then
@@ -175,14 +175,14 @@ valida_dados() {
     fi
 
     ## Testar
-    if [ "$bindinterface" == "Yes" -a "$interfaces" == "lo $PLACA_INTERNA" -o "$interfaces" == "$PLACA_INTERNA lo"  ]; then
+    if [ "$bindinterface" == "Yes" -a "$interfaces" == "lo $PLACA_INTERNA" -o "$interfaces" == "$PLACA_INTERNA lo" ]; then
         echo -e "${GREEN}[SUCCESS]${NC} Configurado para somente a rede local ter acesso. (+3 Pontos)"
         pontos=`expr $pontos + 3`
     else
         echo -e "${RED}[ERROR]${NC} Nao configurado para somente a rede local ter acesso. (+0 Pontos)"
     fi
 
-    if [ "$logondrive" -eq "H:" -a "$homes" -eq "No" ]; then
+    if [ "$logondrive" == "H:" -a "$homes" == "No" ]; then
         echo -e "${GREEN}[SUCCESS]${NC} Diretorio home mapeado (+3 Pontos)"
         pontos=`expr $pontos + 3`
     else
@@ -230,8 +230,7 @@ netlogon() {
     esac
 }
 
-#verificando_servicos
+verificando_servicos
 dados_necessarios
-netlogon "/var/lib/samba/netlogon/netlogon.bat" 2
-echo $?
+#netlogon "/var/lib/samba/netlogon/netlogon.bat" 2
 #rm -f $arquivoTeste
