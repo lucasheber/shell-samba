@@ -9,6 +9,7 @@
 	logon path = 
 	logon script = netlogon.bat
 	max log size = 50
+	netbios name = LUCAS
 	os level = 254
 	preferred master = Yes
 	security = USER
